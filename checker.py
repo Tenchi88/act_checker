@@ -2,6 +2,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 from math import atan2, pi
 import csv
+import subprocess
+import os
 
 
 class PageChecker:
@@ -22,12 +24,12 @@ class PageChecker:
             'error': 'Не заполнена',
         },
         'Зона 4': {
-            'thr': 245,
+            'thr': 247,
             'ok': 'Заполнена',
             'error': 'Не заполнена',
         },
         'Зона 5': {
-            'thr': 247,
+            'thr': 245,
             'ok': 'Заполнена',
             'error': 'Не заполнена',
         },
@@ -47,22 +49,22 @@ class PageChecker:
             'error': 'Не заполнена',
         },
         'Зона 9': {
-            'thr': 250,
+            'thr': 252,
             'ok': 'Заполнена',
             'error': 'Не заполнена',
         },
         'Зона 10': {
-            'thr': 250,
+            'thr': 252,
             'ok': 'Заполнена',
             'error': 'Не заполнена',
         },
         'Зона 11': {
-            'thr': 247,
+            'thr': 252,
             'ok': 'Заполнена',
             'error': 'Не заполнена',
         },
         'Зона 12': {
-            'thr': 250,
+            'thr': 252,
             'ok': 'Заполнена',
             'error': 'Не заполнена',
         },
@@ -228,12 +230,15 @@ class PageChecker:
         },
     }
 
-    def __init__(self, input_image):
+    def __init__(self, input_image, number):
         self.image = Image.open(input_image)
         self.sharpness = 5
         for i in range(self.sharpness):
             enhancer = ImageEnhance.Sharpness(self.image)
             self.image = enhancer.enhance(2.0)
+        self.image = self.image.convert('1')
+        self.image = self.image.convert('RGB')
+        # self.image = self.image.point(lambda x: 0 if x < 128 else 255, '1')
         self.original_x, self.original_y = self.image.size
         self.resized_im = None
         self.image_data = None
@@ -250,6 +255,232 @@ class PageChecker:
         self.vertical = []
         self.mean_val = 0
         self.threshold = 0
+        self.number = number
+
+    @staticmethod
+    def init_zones():
+        PageChecker.zones = {
+            'Зона 1': {
+                'thr': None,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 2': {
+                'thr': None,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 3': {
+                'thr': 227,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 4': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 5': {
+                'thr': 245,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 6': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 7': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 8': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 9': {
+                'thr': 252,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 10': {
+                'thr': 252,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 11': {
+                'thr': 252,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 12': {
+                'thr': 252,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 13': {
+                'thr': None,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 14': {
+                'thr': None,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 15': {
+                'thr': None,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 16': {
+                'thr': None,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 17': {
+                'thr': 237,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 18': {
+                'thr': 238,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 19': {
+                'thr': 238,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 20': {
+                'thr': 245,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 21a': {
+                'thr': 243,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 21b': {
+                'thr': 245,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 22': {
+                'thr': 245,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 23': {
+                'thr': 243,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 24': {
+                'thr': 235,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 25': {
+                'thr': 230,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 26-1': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 26-2': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 26-3': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 26-4': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 26-5': {
+                'thr': 250,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 26-6': {
+                'thr': 250,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 26-7': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 26-8': {
+                'thr': 247,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 27': {
+                'thr': 250,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 28': {
+                'thr': 245,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 29': {
+                'thr': 245,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 30a': {
+                'thr': 218,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 30b': {
+                'thr': 235,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 31': {
+                'thr': 235,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 32': {
+                'thr': None,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 33': {
+                'thr': 240,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 34': {
+                'thr': 245,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+            'Зона 35': {
+                'thr': 234,
+                'ok': 'Заполнена',
+                'error': 'Не заполнена',
+            },
+        }
 
     def resize_to_array(self, verbose=False):
         scale = 2
@@ -692,7 +923,7 @@ class PageChecker:
     def mean_val_in_area(self, verbose=False):
         for area in self.areas:
             area_data = self.image_data[area['y']+1:area['y']+area['y_size']-1, area['x']+1:area['x']+area['x_size']-1]
-            val = area_data.median()
+            val = area_data.mean()
             if verbose:
                 print('Среднее значение в зоне', area['label'], val)
             if area['label'] in PageChecker.zones:
@@ -834,6 +1065,7 @@ class PageChecker:
                 line_17 = line
             elif 'val' not in PageChecker.zones['Зона 18'] and line_18 is None:
                 line_18 = line
+                line_18['len'] = self.x_size*0.2
             elif 'val' not in PageChecker.zones['Зона 19'] and line_19 is None:
                 line_19 = line
         if line_17 is not None and line_19 is not None:
@@ -1180,8 +1412,9 @@ class Checker:
     def __init__(self, name, pages=1):
         self.name = name
         self.page = []
+        self.writer = None
         for i in range(1, pages+1):
-            self.page.append(PageChecker('{}-{}.jpg'.format(name, i)))
+            self.page.append(PageChecker('{}-{}.jpg'.format(name, i), i))
         self.results = {}
 
     def check_page_1(self):
@@ -1195,8 +1428,8 @@ class Checker:
         page.convert_to_image()
         page.join_lines(delta_along=3, delta_cross=2)
         page.detect_rotation(verbose=True)
-        page.search_in_page_1(verbose=True)
-        page.mean_val_in_area(verbose=True)
+        page.search_in_page_1()
+        page.mean_val_in_area()
         # page.draw_raw_lines()
         page.color_results()
         page.draw_all_marks()
@@ -1211,8 +1444,8 @@ class Checker:
         page.convert_to_image()
         page.join_lines(delta_along=3, delta_cross=2)
         page.detect_rotation(verbose=True)
-        page.search_in_page_2(verbose=True)
-        page.mean_val_in_area(verbose=True)
+        page.search_in_page_2()
+        page.mean_val_in_area()
         # page.draw_raw_lines()
         page.color_results()
         page.draw_all_marks()
@@ -1227,8 +1460,8 @@ class Checker:
         page.convert_to_image()
         page.join_lines(delta_along=50, delta_cross=3)
         page.detect_rotation(verbose=True)
-        page.search_in_page_4(verbose=True)
-        page.mean_val_in_area(verbose=True)
+        page.search_in_page_4()
+        page.mean_val_in_area()
         # page.draw_raw_lines()
         page.draw_all_marks()
         # page.show_results()
@@ -1242,22 +1475,16 @@ class Checker:
         page.convert_to_image()
         page.join_lines(delta_along=70, delta_cross=3)
         page.detect_rotation(verbose=True)
-        page.search_in_page_7(verbose=True)
-        page.mean_val_in_area(verbose=True)
+        page.search_in_page_7()
+        page.mean_val_in_area()
         page.draw_raw_lines()
         page.draw_all_marks()
         # page.show_results()
         page.save_to('{}-{}_edited.jpg'.format(self.name, 7))
 
     def show_all_results(self):
-        result_file = open(self.name + '.csv', 'w')
-        fieldnames = ["Файл"]
-        for zone in self.page[0].zones:
-            fieldnames.append(zone)
-        writer = csv.DictWriter(result_file, fieldnames=fieldnames, delimiter=';')
-        writer.writeheader()
         row = {
-            'Файл': self.name,
+            'Файл': self.name + '.pdf',
         }
         for page in self.page:
             for res in page.zones:
@@ -1282,7 +1509,7 @@ class Checker:
                     zone, self.results[zone]['error'], int(self.results[zone]['val']), self.results[zone]['thr'])
                 )
                 row[zone] = 'Не заполнена'
-        writer.writerow(row)
+        return row
 
 
 def scale_reduce(input_data, verbose=True):
@@ -1308,12 +1535,35 @@ def scale_reduce(input_data, verbose=True):
 if __name__ == '__main__':
     # 2708, 2711, 2716
     # checker = Checker('elections/Волгоградская область УИК 2708', pages=6)
-    checker = Checker('elections/test/Test3', pages=7)
-    checker.check_page_1()
-    checker.check_page_2()
-    checker.check_page_4()
-    checker.check_page_7()
-    checker.show_all_results()
+    pdf_files = os.listdir('pdf')
+    writer = None
+    for pdf_file in pdf_files:
+        if pdf_file[-4:] != '.pdf':
+            continue
+        pdf_file = 'pdf/' + pdf_file
+        p = subprocess.Popen('pdf-to-jpg_wo_pause.bat {}'.format(pdf_file))
+        p.wait()
+        files = os.listdir('pdf')
+        for pages in range(1, 10):
+            print('{}-{}.jpg'.format(pdf_file[4:-4], pages))
+            if '{}-{}.jpg'.format(pdf_file[4:-4], pages) not in files:
+                pages -= 1
+                break
+        if writer is None:
+            result_file = open('pdf/results.csv', 'w')
+            fieldnames = ["Файл"]
+            for zone in PageChecker.zones:
+                fieldnames.append(zone)
+            writer = csv.DictWriter(result_file, fieldnames=fieldnames, delimiter=';', lineterminator='\n')
+            writer.writeheader()
+        checker = Checker(pdf_file[:-4], pages=pages)
+        checker.check_page_1()
+        checker.check_page_2()
+        checker.check_page_4()
+        checker.check_page_7()
+        new_row = checker.show_all_results()
+        PageChecker.init_zones()
+        writer.writerow(new_row)
     # page = checker.page[5]
     # print('Размер исходного  изображения:', page.original_x, page.original_y)
     # #
