@@ -826,16 +826,20 @@ class PageChecker:
             table_number += 1
 
         # Разбираем зону адреса УИК
-        zone_addr_start = min(group_areas[0]['y'], group_areas[1]['y'])
-        address_lines = []
-        additive = 10
-        additive_top = additive + 30
-        for line in self.horizontal_raw:
-            if (
-                    area_4_line['level'] + additive_top < line['level'] < zone_addr_start - additive
-                    and line['len'] > 30
-            ):
-                address_lines.append(line.copy())
+        if len(group_areas):
+            if len(group_areas) > 1:
+                zone_addr_start = min(group_areas[0]['y'], group_areas[1]['y'])
+            else:
+                zone_addr_start = group_areas[0]['y']
+            address_lines = []
+            additive = 10
+            additive_top = additive + 30
+            for line in self.horizontal_raw:
+                if (
+                        area_4_line['level'] + additive_top < line['level'] < zone_addr_start - additive
+                        and line['len'] > 30
+                ):
+                    address_lines.append(line.copy())
 
         if len(address_lines) > 1:
             low_x = self.x_size
@@ -886,22 +890,23 @@ class PageChecker:
                 )
                 zone_number += 1
 
-        zone_16_end = max(group_areas[0]['y']+group_areas[0]['y_size'], group_areas[1]['y']+group_areas[1]['y_size'])
-        lines_after_16 = []
-        additive = 10
-        for line in self.horizontal_raw:
-            if zone_16_end + additive < line['level'] and line['len'] > 100:
-                lines_after_16.append(line.copy())
-        zone_number = 17
-        for line in lines_after_16:
-            # self.horizontal.append(line)
-            print(line)
-            self.add_area(
-                line['start'], line['level']-line_size, line['len'], line_size,
-                label='Зона {}'.format(zone_number),
-                label_font_size=10
-            )
-            zone_number += 1
+        if len(group_areas) > 1:
+            zone_16_end = max(group_areas[0]['y']+group_areas[0]['y_size'], group_areas[1]['y']+group_areas[1]['y_size'])
+            lines_after_16 = []
+            additive = 10
+            for line in self.horizontal_raw:
+                if zone_16_end + additive < line['level'] and line['len'] > 100:
+                    lines_after_16.append(line.copy())
+            zone_number = 17
+            for line in lines_after_16:
+                # self.horizontal.append(line)
+                print(line)
+                self.add_area(
+                    line['start'], line['level']-line_size, line['len'], line_size,
+                    label='Зона {}'.format(zone_number),
+                    label_font_size=10
+                )
+                zone_number += 1
 
         # Разбираем зону 14
         # if group_areas[0]['y'] > group_areas[1]['y']:
@@ -922,6 +927,9 @@ class PageChecker:
 
     def mean_val_in_area(self, verbose=False):
         for area in self.areas:
+            print(area)
+            print(area['y']+1, area['y']+area['y_size']-1, area['x']+1, area['x']+area['x_size']-1)
+            print(len(self.image_data), len(self.image_data[0]))
             area_data = self.image_data[area['y']+1:area['y']+area['y_size']-1, area['x']+1:area['x']+area['x_size']-1]
             val = area_data.mean()
             if verbose:
@@ -1126,10 +1134,15 @@ class PageChecker:
         #     self.horizontal.append(line)
         area_21_line_1 = None
         area_21_line_2 = None
-        if len(large_field_lines) > 1:
-            area_21_line_1 = large_field_lines[1]
-        if len(large_field_lines) > 2:
-            area_21_line_2 = large_field_lines[2]
+        area_22_line = None
+        for line in large_field_lines[1:]:
+            if area_21_line_1 is None:
+                area_21_line_1 = line
+            elif area_21_line_2 is None:
+                if line['level'] > area_21_line_1['level'] + 10:
+                    area_21_line_2 = line
+            elif area_22_line is None and line['level'] > area_21_line_2['level'] + 10:
+                area_22_line = line
         if area_21_line_1:
             self.add_area(
                 area_21_line_1['start'], area_21_line_1['level']-line_size, area_21_line_1['len'], line_size,
@@ -1140,26 +1153,26 @@ class PageChecker:
                 area_21_line_2['start'], area_21_line_2['level']-line_size, area_21_line_2['len'], line_size,
                 label='Зона 21b', label_font_size=10
             )
-        if len(large_field_lines) > 3:
-            area_a_x = large_field_lines[3]['start']
-            area_a_x_size = large_field_lines[3]['len']
-            area_a_y = large_field_lines[3]['level'] + 20
+        if area_22_line:
+            area_a_x = area_22_line['start']
+            area_a_x_size = area_22_line['len']
+            area_a_y = area_22_line['level'] + 20
             area_a_y_size = self.y_size*0.3
-        self.add_area(
-            area_a_x+0.08*area_a_x_size, area_a_y,
-            area_a_x_size/2-0.1*area_a_x_size - 20, 40,
-            label='Зона 22', label_font_size=10
-        )
-        self.add_area(
-            area_a_x+area_a_x_size/2 + 20, area_a_y,
-            area_a_x_size/2-0.1*area_a_x_size, 40,
-            label='Зона 23', label_font_size=10
-        )
-        self.add_area(
-            area_a_x+0.08*area_a_x_size, area_a_y+area_a_y_size*0.7,
-            area_a_x_size/2-0.1*area_a_x_size, area_a_y_size*0.3,
-            label='Зона 24', label_font_size=10
-        )
+            self.add_area(
+                area_a_x+0.08*area_a_x_size, area_a_y,
+                max(area_a_x_size/2-0.1*area_a_x_size - 20, 20), 40,
+                label='Зона 22', label_font_size=10
+            )
+            self.add_area(
+                area_a_x+area_a_x_size/2 + 20, area_a_y,
+                area_a_x_size/2-0.1*area_a_x_size, 40,
+                label='Зона 23', label_font_size=10
+            )
+            self.add_area(
+                area_a_x+0.08*area_a_x_size, area_a_y+area_a_y_size*0.7,
+                area_a_x_size/2-0.1*area_a_x_size, area_a_y_size*0.3,
+                label='Зона 24', label_font_size=10
+            )
         # return
         # lines_in_area_a = []
         # area_21_line_1 = None
@@ -1199,7 +1212,7 @@ class PageChecker:
         #     label='Зона 22', label_font_size=10
         # )
 
-    def search_in_page_4(self, verbose=False):
+    def search_in_page_3(self, verbose=False):
         line_size = 15
         area_25_line = None
         for line in self.horizontal_raw:
@@ -1429,12 +1442,12 @@ class Checker:
         page.join_lines(delta_along=3, delta_cross=2)
         page.detect_rotation(verbose=True)
         page.search_in_page_1()
-        page.mean_val_in_area()
+        page.mean_val_in_area(verbose=True)
         # page.draw_raw_lines()
         page.color_results()
         page.draw_all_marks()
         # page.show_results()
-        page.save_to('{}-{}_edited.jpg'.format(self.name, 1))
+        page.save_to('{}-{}_edited.jpg'.format(self.name, page.number))
 
     def check_page_2(self):
         page = self.page[1]
@@ -1445,30 +1458,30 @@ class Checker:
         page.join_lines(delta_along=3, delta_cross=2)
         page.detect_rotation(verbose=True)
         page.search_in_page_2()
-        page.mean_val_in_area()
+        page.mean_val_in_area(verbose=True)
         # page.draw_raw_lines()
         page.color_results()
         page.draw_all_marks()
         # page.show_results()
-        page.save_to('{}-{}_edited.jpg'.format(self.name, 2))
+        page.save_to('{}-{}_edited.jpg'.format(self.name, page.number))
         
-    def check_page_4(self):
-        page = self.page[3]
+    def check_page_3(self):
+        page = self.page[2]
         print('Размер исходного  изображения:', page.original_x, page.original_y)
         page.resize_to_array(verbose=True)
         page.search_lines(lines_only=False)
         page.convert_to_image()
         page.join_lines(delta_along=50, delta_cross=3)
         page.detect_rotation(verbose=True)
-        page.search_in_page_4()
-        page.mean_val_in_area()
+        page.search_in_page_3()
+        page.mean_val_in_area(verbose=True)
         # page.draw_raw_lines()
         page.draw_all_marks()
         # page.show_results()
-        page.save_to('{}-{}_edited.jpg'.format(self.name, 4))
+        page.save_to('{}-{}_edited.jpg'.format(self.name, page.number))
 
     def check_page_7(self):
-        page = self.page[6]
+        page = self.page[-1]
         print('Размер исходного  изображения:', page.original_x, page.original_y)
         page.resize_to_array(verbose=True)
         page.search_lines(lines_only=False)
@@ -1476,11 +1489,11 @@ class Checker:
         page.join_lines(delta_along=70, delta_cross=3)
         page.detect_rotation(verbose=True)
         page.search_in_page_7()
-        page.mean_val_in_area()
+        page.mean_val_in_area(verbose=True)
         page.draw_raw_lines()
         page.draw_all_marks()
         # page.show_results()
-        page.save_to('{}-{}_edited.jpg'.format(self.name, 7))
+        page.save_to('{}-{}_edited.jpg'.format(self.name, page.number))
 
     def show_all_results(self):
         row = {
@@ -1541,7 +1554,7 @@ if __name__ == '__main__':
         if pdf_file[-4:] != '.pdf':
             continue
         pdf_file = 'pdf/' + pdf_file
-        p = subprocess.Popen('pdf-to-jpg_wo_pause.bat {}'.format(pdf_file))
+        p = subprocess.Popen('pdf-to-jpg_wo_pause.bat "{}"'.format(pdf_file))
         p.wait()
         files = os.listdir('pdf')
         for pages in range(1, 10):
@@ -1559,7 +1572,7 @@ if __name__ == '__main__':
         checker = Checker(pdf_file[:-4], pages=pages)
         checker.check_page_1()
         checker.check_page_2()
-        checker.check_page_4()
+        checker.check_page_3()
         checker.check_page_7()
         new_row = checker.show_all_results()
         PageChecker.init_zones()
