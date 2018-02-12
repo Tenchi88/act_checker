@@ -1572,12 +1572,19 @@ if __name__ == '__main__':
                 fieldnames.append(zone)
             writer = csv.DictWriter(result_file, fieldnames=fieldnames, delimiter=';', lineterminator='\n')
             writer.writeheader()
-        checker = Checker(pdf_file[:-4], pages=pages)
-        checker.check_page_1()
-        checker.check_page_2()
-        checker.check_page_3()
-        checker.check_page_7()
-        new_row = checker.show_all_results()
+        try:
+            checker = Checker(pdf_file[:-4], pages=pages)
+            checker.check_page_1()
+            checker.check_page_2()
+            checker.check_page_3()
+            checker.check_page_7()
+            new_row = checker.show_all_results()
+        except Exception as ex:
+            print('ОШИБКА при обработке акта {}'.format(pdf_file))
+            print(ex)
+            new_row['Файл'] = pdf_file
+            for zone in PageChecker.zones:
+                new_row[zone] = "ошибка"
         PageChecker.init_zones()
         writer.writerow(new_row)
     # page = checker.page[5]
